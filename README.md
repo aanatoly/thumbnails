@@ -1,5 +1,6 @@
 # what
-Batch creation of standart freedesktop thumbnails, compatible with thunar, pcmanfm, nautilus etc
+Batch creation of standart freedesktop thumbnails, compatible with thunar, pcmanfm, nautilus etc.
+No dbus, gnome or kde is required.
 
 # why
 Mainly to generate thumbnail(s) from the script or to overcome file browser failures
