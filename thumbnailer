@@ -1,0 +1,188 @@
+#!/usr/bin/python
+
+############################################
+# Imports
+############################################
+import logging
+import os
+import argparse
+import subprocess as sp
+import json
+import urllib
+import hashlib
+
+############################################
+# Logging
+############################################
+log = logging.getLogger('rk.bs')
+
+def _init_log():
+    log = logging.getLogger('rk.bs')
+    log.setLevel(logging.INFO)
+    # log.setLevel(logging.DEBUG)
+    h = logging.StreamHandler()
+    # f = MyFormatter()
+    f = logging.Formatter()
+    h.setFormatter(f)
+    log.addHandler(h)
+
+_init_log()
+
+############################################
+# Argument parsing
+############################################
+
+desc = '''Batch generator of freedesktop standart thumbnails'''
+p = argparse.ArgumentParser(description=desc,
+    usage='%(prog)s [options] [files]')
+p.add_argument("--debug", help="debug mode", action="store_true")
+p.add_argument("-s", help="thumbnail size (default: %(default)s)",
+    dest='size', choices=['128', '256'], default='128')
+p.add_argument("-g", help="way to get mime type; 'file' - use file tool," + \
+    "'python' - use python internal code (default: %(default)s)",
+               dest='guess', choices=['file', 'python'], default='python')
+p.add_argument("-i", help="print thumbnail info",
+    dest='info', action="store_true")
+p.add_argument("-o", help="output file (for single input file only)",
+    dest='output')
+p.add_argument("files", help="files",
+    nargs='+')
+# p.add_argument("args", help="args",
+#     nargs=argparse.REMAINDER)
+
+args = p.parse_args()
+if args.debug:
+    log.setLevel(logging.DEBUG)
+
+log.debug("Args: %s", args)
+
+############################################
+# main
+############################################
+
+def parse_thumbnailer(db, d, f):
+    path = os.path.join(d, f)
+    log.debug("Parsing %s", path)
+
+    try:
+        text = open(path, 'r').read().strip()
+    except:
+        return
+    # log.debug("text %s", text)
+    text = text.splitlines()
+    if text[0] != '[Thumbnailer Entry]':
+        return
+    vexec = ''
+    vmime = ''
+    for line in text[1:]:
+        line = line.strip()
+        # log.debug("line '%s'", line)
+        if line[0] == '#':
+            continue
+        xline = line.split('=')
+        if len(xline) != 2:
+            log.warning("File %s: Bad line '%s'", path, line)
+            continue
+        if xline[0] == 'Exec':
+            xexec = xline[1]
+        elif xline[0] == 'MimeType':
+            xmime = xline[1]
+        else:
+            continue
+    for mime in xmime.split(';'):
+        if mime:
+            db[mime] = xexec
+
+
+
+def get_uri_from_path(path):
+    path = os.path.abspath(path)
+    path = 'file://' + urllib.pathname2url(path.encode('utf-8'))
+    return path
+
+
+def get_hash_dst(f):
+    path = get_uri_from_path(f)
+    path = hashlib.md5(path).hexdigest() + '.png'
+    b = os.path.expanduser('~/.thumbnails')
+    if args.size == '128':
+        path = os.path.join(b, 'normal', path)
+    else:
+        path = os.path.join(b, 'large', path)
+    log.debug("hash %s", path)
+    return path
+
+
+null = open('/dev/null', 'w')
+
+def thumb_one(db, f):
+    def replace(l, froms, tos):
+        nl = []
+        for e in l:
+            e = e.replace(froms, tos)
+            nl.append(e)
+        return nl
+                
+    if args.guess == 'python':
+        import mimetypes
+        mt, tmp = mimetypes.guess_type(f)
+        if not mt:
+            log.error("File %s, mime-type is unknown", f)
+            raise Exception('fixme')
+    else:
+        cmd= ['file', '-b', '-E', '--mime-type', f]
+        mt = sp.check_output(cmd)
+    log.debug("file %s, mime %s", f, mt)
+    if not mt in db:
+        log.debug("no thumbnailers")
+        return ''
+    th = db[mt]
+    log.debug("thumbailer: %s", th)
+    if args.output:
+        dst = args.output
+    else:
+        dst = get_hash_dst(f)
+    th = th.split()
+    th = replace(th, '%s', args.size)
+    th = replace(th, '%u', get_uri_from_path(f))
+    th = replace(th, '%i', f)
+    th = replace(th, '%o', dst)
+    log.debug('th %s', th)
+    sp.check_call(th, stdout=null, stderr=null)
+    return dst
+
+
+def thumb_all(db):
+    for f in args.files:
+        # thumb_one(db, f)
+        try:
+            dst = thumb_one(db, f)
+        except:
+            dst = ''
+        if args.info:
+            print f, ":", dst
+
+            
+def get_thumbnailer_dirs():
+    return ['/usr/share/thumbnailers', 'test']
+
+
+if __name__ == '__main__':
+    log.debug("")
+    if args.output and len(args.files) != 1:
+        log.error("Output arg is valid only for single input file")
+        exit(1)
+
+    db = {}
+    for d in get_thumbnailer_dirs():
+        try:
+            for f in os.listdir(d):
+                if not f.endswith('.thumbnailer'):
+                    continue
+                parse_thumbnailer(db, d, f)
+        except:
+            pass
+
+    thumb_all(db)
+   
+            
