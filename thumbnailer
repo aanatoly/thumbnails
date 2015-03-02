@@ -43,6 +43,8 @@ p.add_argument("-g", help="way to get mime type; 'file' - use file tool," + \
                dest='guess', choices=['file', 'python'], default='python')
 p.add_argument("-i", help="print thumbnail info",
     dest='info', action="store_true")
+p.add_argument("-d", help="if arg is a dir, substitute its files",
+    dest='dodir', action="store_true")
 p.add_argument("-o", help="output file (for single input file only)",
     dest='output')
 p.add_argument("files", help="files",
@@ -115,14 +117,10 @@ def get_hash_dst(f):
 
 null = open('/dev/null', 'w')
 
-def thumb_one(db, f):
-    def replace(l, froms, tos):
-        nl = []
-        for e in l:
-            e = e.replace(froms, tos)
-            nl.append(e)
-        return nl
-                
+
+def get_mime_type(f):
+    if os.path.isdir(f):
+        return "inode/directory"
     if args.guess == 'python':
         import mimetypes
         mt, tmp = mimetypes.guess_type(f)
@@ -132,6 +130,18 @@ def thumb_one(db, f):
     else:
         cmd= ['file', '-b', '-E', '--mime-type', f]
         mt = sp.check_output(cmd)
+    return mt
+
+
+def thumb_one(db, f):
+    def replace(l, froms, tos):
+        nl = []
+        for e in l:
+            e = e.replace(froms, tos)
+            nl.append(e)
+        return nl
+
+    mt = get_mime_type(f)
     log.debug("file %s, mime %s", f, mt)
     if not mt in db:
         log.debug("no thumbnailers")
@@ -167,12 +177,26 @@ def get_thumbnailer_dirs():
     return ['/usr/share/thumbnailers', 'test']
 
 
+def dodir():
+    files = []
+    for f in args.files:
+        if not os.path.isdir(f):
+            files.appedn(f)
+            continue
+        for tf in os.listdir(f):
+            files.append(os.path.join(f, tf))
+    args.files = files
+    # log.debug("new files %s", args.files)
+
+    
 if __name__ == '__main__':
     log.debug("")
     if args.output and len(args.files) != 1:
         log.error("Output arg is valid only for single input file")
         exit(1)
 
+    if args.dodir:
+        dodir()
     db = {}
     for d in get_thumbnailer_dirs():
         try:
