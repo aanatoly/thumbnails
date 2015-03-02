@@ -158,7 +158,7 @@ def thumb_one(db, f):
     th = replace(th, '%i', f)
     th = replace(th, '%o', dst)
     log.debug('th %s', th)
-    sp.check_call(th, stdout=null, stderr=null)
+    sp.check_call(th, stdout=null)
     return dst
 
 
@@ -167,14 +167,16 @@ def thumb_all(db):
         # thumb_one(db, f)
         try:
             dst = thumb_one(db, f)
-        except:
+        except Exception, e:
+            log.warning("thumbnailer failed %s", e)
             dst = ''
         if args.info:
             print f, ":", dst
 
             
 def get_thumbnailer_dirs():
-    return ['/usr/share/thumbnailers', 'test']
+    return ['/usr/share/thumbnailers',
+        os.path.expanduser('~/.local/share/thumbnailers')]
 
 
 def dodir():
