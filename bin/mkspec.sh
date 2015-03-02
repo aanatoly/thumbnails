@@ -8,6 +8,6 @@ for m in $mime; do xmime="${xmime}${m};"; done
 cat <<EOF
 [Thumbnailer Entry]
 TryExec=imgth
-Exec=imgth -s %s -i %u -o %o
+Exec=imgth -s %s -i %i -o %o
 MimeType=${xmime}
 EOF
