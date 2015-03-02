@@ -14,7 +14,7 @@ imgth: imgth.o
 	gcc $^ -o $@  $(LDFLAGS)
 
 image-imgth.thumbnailer:
-	./mkspec.sh > $^
+	./mkspec.sh > $@
 
 clean:
 	rm -f imgth *.o image-imgth.thumbnailer
