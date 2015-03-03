@@ -1,4 +1,15 @@
-/* simple image thumbnailer */
+/* imgth - simple image thumbnailer
+ * 
+ * Accept image as input and writes its thumbnail to the output.
+ * Thumbnail size defaults to 128.
+ * For actual image processing uses gdk-pixbuf, to see supported
+ * formats, run `gdk-pixbuf-query-loaders`
+ *
+ * To be compliant with freedesktop spec, caller must compute
+ * correct thumbnail path.
+ * 
+ * Return code: 0 for success, error code otherwise
+ */
 
 #include <unistd.h>
 #include <limits.h>
@@ -17,44 +28,27 @@ static gboolean debug = FALSE;
 static char *input = NULL;
 static char *output = NULL;
 
-// 1 - free everything, 0 - free nothing, wait for exit()
-static int slow_path = 0;
 static GOptionEntry entries[] = {
     { "size", 's', 0, G_OPTION_ARG_INT, &size,
       "Thumbnail size (default 128)", NULL },
     { "input", 'i', 0, G_OPTION_ARG_STRING, &input,
       "Input image path", NULL },
     { "output", 'o', 0, G_OPTION_ARG_STRING, &output,
-      "Output thumbnail path, if omited, it is calculated "
-      "according to the freedesktop spec", NULL },
+      "Output thumbnail path", NULL },
     { "debug", 0, 0, G_OPTION_ARG_NONE, &debug,
       "Debug ouput", NULL },
     { NULL }
 };
+
+// 1 - free everything, 0 - free nothing, wait for exit()
+// slow_path is usefull in valgrinding the code
+static int slow_path = 0;
 
 #define DBG(args...)                            \
     do {                                        \
     if (debug) g_print(args);                   \
     } while (0)
     
-
-static char *
-get_dstdir(int size)
-{
-    char *name = NULL, *dstdir;
-    
-    if (size == 128)
-        name = "normal";
-    else if (size == 256)
-        name = "large";
-    else
-        g_error("Can't decide on ~/.thumbnails subdir: non standard thumb size %d", size);
-    
-    dstdir = g_build_filename(g_get_home_dir(), ".thumbnails", name, NULL);
-    if (g_mkdir_with_parents(dstdir, 0700)) 
-        g_error("can't mkdir %s\n", dstdir);
-    return dstdir;
-}
 
 
 
@@ -81,30 +75,13 @@ mk_thumb(const char *input, char *output, int size)
     g_snprintf(mtime_str, 100, "%lu", statbuf.st_mtime);
     //gdk_pixbuf_set_option(pix, "tEXt::Thumb::MTime", mtime_str);
     //gdk_pixbuf_set_option(pix, "tEXt::Thumb::URI", uri);
-    if (!output) {
-        gchar *csum = g_compute_checksum_for_string(G_CHECKSUM_MD5, uri, -1);
-        gchar *dst = get_dstdir(size);
-        
-        if (slow_path) g_free(path);
-        path = g_strdup_printf("%s%s%s.png", dst, G_DIR_SEPARATOR_S, csum);
-        DBG("th path %s\n", path);
-        if (slow_path) g_free(csum);
-        if (slow_path) g_free(dst);
-        rc = gdk_pixbuf_save(pix, path, "png", &error,
-            "tEXt::Thumb::MTime", mtime_str,
-            "tEXt::Thumb::URI", uri,
-            NULL);
-    } else {
-        rc = gdk_pixbuf_save(pix, output, "png", &error,
-            "tEXt::Thumb::MTime", mtime_str,
-            "tEXt::Thumb::URI", uri,
-            NULL);
-    }
+    rc = gdk_pixbuf_save(pix, output, "png", &error,
+        "tEXt::Thumb::MTime", mtime_str,
+        "tEXt::Thumb::URI", uri,
+        NULL);
     if (rc == FALSE)
         g_error("pixbuf save failed %s\n", error->message);
-    if (!output)
-        g_print("%s : %s\n", input, path);
-        
+
     if (slow_path) {
         g_object_unref(pix);
         g_free(path);
@@ -127,7 +104,11 @@ int main(int argc, char *argv[])
 
     if (!input) 
         g_error("input file is missing");
+    if (!output) 
+        g_error("output file is missing");
         
     mk_thumb(input, output, size);
+    if (slow_path)
+        g_option_context_free(context);
     exit(0);
 }
