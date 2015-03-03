@@ -41,8 +41,8 @@ p.add_argument("-s", help="thumbnail size (default: %(default)s)",
 p.add_argument("-g", help="way to get mime type; 'file' - use file tool," + \
     "'python' - use python internal code (default: %(default)s)",
                dest='guess', choices=['file', 'python'], default='python')
-p.add_argument("-i", help="print thumbnail info",
-    dest='info', action="store_true")
+p.add_argument("-v", help="print names of proccesed files",
+    dest='verbose', action="store_true")
 p.add_argument("-d", help="if arg is a dir, substitute its files",
     dest='dodir', action="store_true")
 p.add_argument("-o", help="output file (for single input file only)",
@@ -170,7 +170,7 @@ def thumb_all(db):
         except Exception, e:
             log.warning("thumbnailer failed %s", e)
             dst = ''
-        if args.info:
+        if args.verbose:
             print f, ":", dst
 
             
@@ -197,8 +197,15 @@ if __name__ == '__main__':
         log.error("Output arg is valid only for single input file")
         exit(1)
 
+    thdir = os.path.expanduser('~/.thumbnails')
+    for sdir in ['normal', 'large']:
+        sdir = os.path.join(thdir, sdir)
+        if not os.path.exists(sdir):
+            os.makedirs(sdir)
+            
     if args.dodir:
         dodir()
+        
     db = {}
     for d in get_thumbnailer_dirs():
         try:
