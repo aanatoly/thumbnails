@@ -10,4 +10,8 @@ image-imgth.thumbnailer:
 
 CLEANLIST += image-imgth.thumbnailer
 
+install:
+	$Qinstall -d $(DESTDIR)$(DATADIR)/thumbnailers
+	$Qinstall -m 644 -t $(DESTDIR)$(DATADIR)/thumbnailers $(THS)
+
 include $(TOPDIR)/.config/rules.mk
