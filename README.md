@@ -14,7 +14,7 @@ First you need to install programs that actually create thumbnails
  * pdf - ghostscript or evince
  
 Second, create mapping betwean mime types and thumbnailers. These mappings are text files that reside in
-`/usr/share/thumbnailers` dir and have '.thumbnailer' extension. For example
+`/usr/share/thumbnailers` dir and have `.thumbnailer` extension. For example
 
 File `/usr/share/thumbnailers/video.thumbnailer`
 ```
