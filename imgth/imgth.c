@@ -23,8 +23,12 @@
 #include <glib.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
+//#define DEBUGPRN
+#include "dbg.h"
+
 static gint size = 128;
-static gboolean debug = FALSE;
+//static gboolean debug = FALSE;
+static gboolean debug = TRUE;
 static char *input = NULL;
 static char *output = NULL;
 
@@ -44,11 +48,6 @@ static GOptionEntry entries[] = {
 // slow_path is usefull in valgrinding the code
 static int slow_path = 0;
 
-#define DBG(args...)                            \
-    do {                                        \
-    if (debug) g_print(args);                   \
-    } while (0)
-    
 
 
 
@@ -62,6 +61,7 @@ mk_thumb(const char *input, char *output, int size)
     char mtime_str[100];
     GError *error = NULL;
     
+    DBG("input file '%s'\n", input);
     pix = gdk_pixbuf_new_from_file_at_scale(input, size, size, TRUE, &error);
     if (!pix)
         g_error("%s", error->message);
